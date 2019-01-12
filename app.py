@@ -2,6 +2,7 @@ from flask import Flask, make_response, request, render_template, jsonify, send_
 
 from werkzeug.exceptions import BadRequest
 import base64
+import os
 
 from products.products import CooksterNN, EvalResult
 
@@ -24,7 +25,7 @@ def products_from_picture():
     if validation_result is not None:
         return validation_result
     try:
-        return model.eval('./images/products.jpg').to_json()
+        return model.eval(input_file).to_json()
     except:
         return BadRequest("Unexpected exception")
 
@@ -35,9 +36,8 @@ def image():
     if validation_result is not None:
         return validation_result
     try:
-        img = './images/products.jpg'
-        output = './output/products.jpg'
-        model.eval(img).save(output)
+        output = './output/' + os.path.basename(input_file)
+        model.eval(input_file).save(output)
         return send_file(output, mimetype='image/jpeg')
     except:
         return BadRequest("Unexpected exception")
