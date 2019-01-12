@@ -7,6 +7,8 @@ import skimage.draw
 import PIL
 from mrcnn.config import Config # pylint: disable=all
 from mrcnn import model as modellib, utils, visualize # pylint: disable=all
+import matplotlib.pyplot as plt
+from flask import jsonify
 
 ROOT_DIR = os.path.abspath('.')
 sys.path.append(ROOT_DIR)
@@ -59,43 +61,51 @@ class ProductDataset(utils.Dataset):
 		info = self.image_info[image_id]
 		return info['path']
 
+class EvalResult:
+	def __init__(self, data, classes, image):
+		self.data = data
+		self.image = image
+		self.classes = classes
 
-def ldmodel(is_training, load_last):
-	config = ProductConfig()
-	mode = 'training' if is_training else 'inference'
-	print('Mode ' + mode)
-	model = modellib.MaskRCNN(mode=mode, config=config, model_dir=DEFAULT_LOGS_DIR)
-	if load_last:
-		weights_path = model.find_last()
-		print('Loading weights ', weights_path)
-		model.load_weights(weights_path, by_name=True)
-	else:
-		#print('Loading weights ', model.get_imagenet_weights())
-		print('Loading weights ', COCO_WEIGHTS_PATH)
-		model.load_weights(COCO_WEIGHTS_PATH, by_name=True, exclude=[
-			'mrcnn_class_logits', 'mrcnn_bbox_fc', 'mrcnn_bbox', 'mrcnn_mask'])
-	return model
+	def save(self, image_path):
+		_, ax = plt.subplots(1, figsize=(16, 16))
+		visualize.display_instances(
+			image=self.image,
+			boxes=self.data['rois'],
+			masks=self.data['masks'],
+			class_ids=self.data['class_ids'],
+			class_names=self.classes,
+			scores=self.data['scores'],
+			ax=ax)
+		plt.savefig(image_path)
 
-def train(model, dataset_path):
-	config = ProductConfig()
-	dataset_train = ProductDataset()
-	dataset_train.load_product(dataset_path, 'train')
-	dataset_train.prepare()
-	dataset_val = ProductDataset()
-	dataset_val.load_product(dataset_path, 'test')
-	dataset_val.prepare()
-	print('Training network heads')
-	model.train(dataset_train, dataset_val, learning_rate=config.LEARNING_RATE, epochs=10, layers='heads')
+	def to_json(self):
+		# todo
+		return jsonify({'products': [{'apple': 1}, {'orange': 2}]})
 
-def test(model, img_path):
-	image = skimage.io.imread(img_path)
-	results = model.detect([image], verbose=1)
-	r = results[0]
-	prd = ['bg'] + PRODUCTS
-	visualize.display_instances(image, r['rois'], r['masks'], r['class_ids'], prd, r['scores'])
+class CooksterNN:
+	def __init__(self, is_training=False, load_last_checkpoint=True):
+		self.config = ProductConfig()
+		self.mode = 'training' if is_training else 'inference'
+		self.model = modellib.MaskRCNN(mode=self.mode, config=self.config, model_dir=DEFAULT_LOGS_DIR)
+		if load_last_checkpoint:
+			weights_path = self.model.find_last()
+			#print('Loading weights ', weights_path)
+			self.model.load_weights(weights_path, by_name=True)
+		else:
+			#print('Loading weights ', COCO_WEIGHTS_PATH)
+			model.load_weights(COCO_WEIGHTS_PATH, by_name=True, exclude=[
+				'mrcnn_class_logits', 'mrcnn_bbox_fc', 'mrcnn_bbox', 'mrcnn_mask'])
 
-# model = ldmodel(is_training=False, load_last=True)
-# test(model, 'images\\products.jpg')
+	def train(self, num_epochs, dataset_dir):
+		dataset_train = ProductDataset()
+		dataset_train.load_product(dataset_dir, 'train')
+		dataset_train.prepare()
+		dataset_val = ProductDataset()
+		dataset_val.load_product(dataset_dir, 'test')
+		dataset_val.prepare()
+		self.model.train(dataset_train, dataset_val, learning_rate=self.config.LEARNING_RATE, epochs=num_epochs, layers='heads')
 
-#model = ldmodel(is_training=True, load_last=False)
-#train(model, 'some dataset')
+	def eval(self, input_image):
+		image = skimage.io.imread(input_image)
+		return EvalResult(self.model.detect([image])[0], ['bg'] + PRODUCTS, image)

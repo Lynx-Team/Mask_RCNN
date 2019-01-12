@@ -3,11 +3,10 @@ from flask import Flask, make_response, request, render_template, jsonify, send_
 from werkzeug.exceptions import BadRequest
 import base64
 
-from products import products
+from products.products import CooksterNN, EvalResult
 
 app = Flask(__name__)
-
-# model = products.ldmodel(is_training=False, load_last=False)
+model = CooksterNN()
 
 def validate(input_file):
     if not input_file:
@@ -24,8 +23,10 @@ def products_from_picture():
     validation_result = validate(input_file)
     if validation_result is not None:
         return validation_result
-    # products = model.eval()
-    return jsonify({'products': [{'apple': 1}, {'orange': 2}]})
+    try:
+        return model.eval('./images/products.jpg').to_json()
+    except:
+        return BadRequest("Unexpected exception")
 
 @app.route('/image', methods=['POST', 'GET'])
 def image():
@@ -33,9 +34,13 @@ def image():
     validation_result = validate(input_file)
     if validation_result is not None:
         return validation_result
-    # img = model.eval()
-    img = './images/products.jpg'
-    return send_file(img, mimetype='image/jpeg')
+    try:
+        img = './images/products.jpg'
+        output = './output/products.jpg'
+        model.eval(img).save(output)
+        return send_file(output, mimetype='image/jpeg')
+    except:
+        return BadRequest("Unexpected exception")
 
 if __name__ == "__main__":
     print("* Starting web server... please wait until server has fully started")
