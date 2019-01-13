@@ -81,8 +81,18 @@ class EvalResult:
 		plt.savefig(image_path)
 
 	def to_json(self):
-		# todo
-		return jsonify({'products': [{'apple': 1}, {'orange': 2}]})
+		threshold = 0.7
+		products = {}
+		for i in range(len(self.data['scores'])):
+			if self.data['scores'][i] < threshold:
+				continue
+			product_id = self.data['class_ids'][i]
+			product = self.classes[product_id]
+			if product in products:
+				products[product] += 1
+			else:
+				products[product] = 1
+		return jsonify(products=products)
 
 class CooksterNN:
 	def __init__(self, is_training=False, load_last_checkpoint=True):
