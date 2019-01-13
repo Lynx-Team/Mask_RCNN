@@ -90,11 +90,11 @@ class CooksterNN:
 		self.model = modellib.MaskRCNN(mode=self.mode, config=self.config, model_dir=DEFAULT_LOGS_DIR)
 		if load_last_checkpoint:
 			weights_path = self.model.find_last()
-			#print('Loading weights ', weights_path)
+			print('Loading weights ', weights_path)
 			self.model.load_weights(weights_path, by_name=True)
 		else:
-			#print('Loading weights ', COCO_WEIGHTS_PATH)
-			model.load_weights(COCO_WEIGHTS_PATH, by_name=True, exclude=[
+			print('Loading weights ', COCO_WEIGHTS_PATH)
+			self.model.load_weights(COCO_WEIGHTS_PATH, by_name=True, exclude=[
 				'mrcnn_class_logits', 'mrcnn_bbox_fc', 'mrcnn_bbox', 'mrcnn_mask'])
 
 	def train(self, num_epochs, dataset_dir):
