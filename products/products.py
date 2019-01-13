@@ -68,6 +68,7 @@ class EvalResult:
 		self.classes = classes
 
 	def save(self, image_path):
+		image_path = fixpath(image_path)
 		_, ax = plt.subplots(1, figsize=(16, 16))
 		visualize.display_instances(
 			image=self.image,
@@ -107,5 +108,9 @@ class CooksterNN:
 		self.model.train(dataset_train, dataset_val, learning_rate=self.config.LEARNING_RATE, epochs=num_epochs, layers='heads')
 
 	def eval(self, input_image):
+		input_image = fixpath(input_image)
 		image = skimage.io.imread(input_image)
 		return EvalResult(self.model.detect([image])[0], ['bg'] + PRODUCTS, image)
+
+def fixpath(p):
+	return os.path.abspath(os.path.normpath(p))
