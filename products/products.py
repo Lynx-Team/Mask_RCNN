@@ -9,6 +9,7 @@ from mrcnn.config import Config # pylint: disable=all
 from mrcnn import model as modellib, utils, visualize # pylint: disable=all
 import matplotlib.pyplot as plt
 from flask import jsonify
+from imgaug import augmenters as iaa
 
 ROOT_DIR = os.path.abspath('.')
 sys.path.append(ROOT_DIR)
@@ -22,14 +23,13 @@ class ProductConfig(Config):
 	IMAGES_PER_GPU = 1
 	NUM_CLASSES = 1 + 5
 	STEPS_PER_EPOCH = 100
-	DETECTION_MIN_CONFIDENCE = 0.7
+	DETECTION_MIN_CONFIDENCE = 0.77
 
 class ProductDataset(utils.Dataset):
-	def load_product(self, dataset_dir, subset):
+	def load(self, dataset_dir):
 		for i in range(len(PRODUCTS)):
 			self.add_class('Products', i+1, PRODUCTS[i])
-		assert subset in ['train', 'test']
-		annotations = json.load(open(os.path.join(dataset_dir, subset, 'cookster.json')))
+		annotations = json.load(open(os.path.join(dataset_dir, 'cookster.json')))
 		annotations = list(annotations.values())
 		annotations = [a for a in annotations if a['regions']]
 		for a in annotations:
@@ -43,9 +43,10 @@ class ProductDataset(utils.Dataset):
 						'class': r['region_attributes']['class']
 					} for r in a['regions']
 				]
-			image_path = os.path.join(dataset_dir, subset, a['filename'])
+			image_path = os.path.join(dataset_dir, a['filename'])
 			height, width = a['Height'], a['Width']
 			self.add_image('Products', image_id=a['filename'], path=image_path, width=width, height=height, polygons=polygons)
+		return self
 
 	def load_mask(self, image_id):
 		info = self.image_info[image_id]
@@ -81,11 +82,8 @@ class EvalResult:
 		plt.savefig(image_path)
 
 	def to_json(self):
-		threshold = 0.7
 		products = {}
 		for i in range(len(self.data['scores'])):
-			if self.data['scores'][i] < threshold:
-				continue
 			product_id = self.data['class_ids'][i]
 			product = self.classes[product_id]
 			if product in products:
@@ -95,11 +93,11 @@ class EvalResult:
 		return jsonify(products=products)
 
 class CooksterNN:
-	def __init__(self, is_training=False, load_last_checkpoint=True):
+	def __init__(self, training=False):
 		self.config = ProductConfig()
-		self.mode = 'training' if is_training else 'inference'
+		self.mode = 'training' if training else 'inference'
 		self.model = modellib.MaskRCNN(mode=self.mode, config=self.config, model_dir=DEFAULT_LOGS_DIR)
-		if load_last_checkpoint:
+		if not training:
 			weights_path = self.model.find_last()
 			print('Loading weights ', weights_path)
 			self.model.load_weights(weights_path, by_name=True)
@@ -108,14 +106,27 @@ class CooksterNN:
 			self.model.load_weights(COCO_WEIGHTS_PATH, by_name=True, exclude=[
 				'mrcnn_class_logits', 'mrcnn_bbox_fc', 'mrcnn_bbox', 'mrcnn_mask'])
 
-	def train(self, num_epochs, dataset_dir):
-		dataset_train = ProductDataset()
-		dataset_train.load_product(dataset_dir, 'train')
-		dataset_train.prepare()
-		dataset_val = ProductDataset()
-		dataset_val.load_product(dataset_dir, 'test')
-		dataset_val.prepare()
-		self.model.train(dataset_train, dataset_val, learning_rate=self.config.LEARNING_RATE, epochs=num_epochs, layers='heads')
+	def train(self, num_epochs, train_path, val_path):
+		train = ProductDataset().load(fixpath(train_path))
+		train.prepare()
+		val = ProductDataset().load(fixpath(val_path))
+		val.prepare()
+
+		aug = iaa.SomeOf((0, 2), [
+			iaa.Fliplr(0.5),
+			iaa.Flipud(0.5),
+			iaa.OneOf([iaa.Affine(rotate=90), iaa.Affine(rotate=180), iaa.Affine(rotate=270)]),
+			iaa.GaussianBlur(sigma=(0.0, 2.0)),
+			iaa.Multiply((0.8, 1.5)),
+		])
+
+		self.model.train(
+			train_dataset=train,
+			val_dataset=val,
+			learning_rate=self.config.LEARNING_RATE,
+			epochs=num_epochs,
+			layers='heads',
+			augmentation=aug)
 
 	def eval(self, input_image):
 		input_image = fixpath(input_image)
