@@ -11,12 +11,13 @@ import matplotlib.pyplot as plt
 from flask import jsonify
 from imgaug import augmenters as iaa
 
-ROOT_DIR = os.path.abspath('.')
-sys.path.append(ROOT_DIR)
-COCO_WEIGHTS_PATH = 'mask_rcnn_coco.h5'
+def fixpath(p):
+	return os.path.abspath(os.path.normpath(p))
+
+ROOT_DIR = fixpath('.') # '/var/www/cookster-nn/'
+COCO_WEIGHTS_PATH = os.path.join(ROOT_DIR, 'mask_rcnn_coco.h5')
 DEFAULT_LOGS_DIR = os.path.join(ROOT_DIR, 'logs')
 PRODUCTS = ['Apple', 'Banana', 'Tomato', 'Cucumber', 'Egg']
-CWD = os.getcwd()
 
 class ProductConfig(Config):
 	NAME = 'Products'
@@ -139,6 +140,3 @@ class CooksterNN:
 		input_image = fixpath(input_image)
 		image = skimage.io.imread(input_image)
 		return EvalResult(self.model.detect([image])[0], ['bg'] + PRODUCTS, image)
-
-def fixpath(p):
-	return os.path.abspath(os.path.normpath(p))
