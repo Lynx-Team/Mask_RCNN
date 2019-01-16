@@ -14,7 +14,7 @@ from imgaug import augmenters as iaa
 def fixpath(p):
 	return os.path.abspath(os.path.normpath(p))
 
-ROOT_DIR = fixpath('.') # '/var/www/cookster-nn/'
+ROOT_DIR = os.path.realpath(os.path.join(__file__, "..", ".."))
 COCO_WEIGHTS_PATH = os.path.join(ROOT_DIR, 'mask_rcnn_coco.h5')
 DEFAULT_LOGS_DIR = os.path.join(ROOT_DIR, 'logs')
 PRODUCTS = ['Apple', 'Banana', 'Tomato', 'Cucumber', 'Egg']
