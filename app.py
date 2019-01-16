@@ -17,7 +17,7 @@ model = CooksterNN(training=False, weights=Weights.LAST)
 def validate(input_file):
     err_msg = ''
     if not input_file:
-        err_msg = 'File not present in request'
+        err_msg = 'File is not present in request'
     elif input_file.filename == '':
         err_msg = 'File name is not present in request'
     elif not input_file.filename.lower().endswith(('.jpg', '.jpeg', '.png')):
@@ -51,7 +51,7 @@ def products_from_picture():
         else:
             result = model.eval(input_file)
             result.save(os.path.join(app.config['OUTPUT_FOLDER'], 'last_json_inference.jpg'))
-            return model.eval(input_file).to_json()
+            return result.to_json()
     except Exception as e:
         stderr.write(str(e) + '\n')
         return BadRequest('Cannot recognize products')
