@@ -5,7 +5,7 @@ from werkzeug.utils import secure_filename
 import base64
 import os
 
-from products.products import CooksterNN, EvalResult
+from products.products import CooksterNN, EvalResult, Weights
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'images/'

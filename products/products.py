@@ -92,19 +92,26 @@ class EvalResult:
 				products[product] = 1
 		return jsonify(products=products)
 
+class Weights:
+	COCO = 0
+	LAST = 1
+	IMAGENET = 2
+
 class CooksterNN:
-	def __init__(self, training=False):
+	def __init__(self, training=False, weights=Weights.LAST):
 		self.config = ProductConfig()
 		self.mode = 'training' if training else 'inference'
 		self.model = modellib.MaskRCNN(mode=self.mode, config=self.config, model_dir=DEFAULT_LOGS_DIR)
-		if not training:
+
+		if weights == Weights.COCO or weights == Weights.IMAGENET:
+			weights_path = COCO_WEIGHTS_PATH if weights == Weights.COCO else self.model.get_imagenet_weights()
+			print('Loading weights ', weights_path)
+			self.model.load_weights(weights_path, by_name=True, exclude=[
+				'mrcnn_class_logits', 'mrcnn_bbox_fc', 'mrcnn_bbox', 'mrcnn_mask'])
+		elif weights == Weights.LAST:
 			weights_path = self.model.find_last()
 			print('Loading weights ', weights_path)
 			self.model.load_weights(weights_path, by_name=True)
-		else:
-			print('Loading weights ', COCO_WEIGHTS_PATH)
-			self.model.load_weights(COCO_WEIGHTS_PATH, by_name=True, exclude=[
-				'mrcnn_class_logits', 'mrcnn_bbox_fc', 'mrcnn_bbox', 'mrcnn_mask'])
 
 	def train(self, num_epochs, train_path, val_path):
 		train = ProductDataset().load(fixpath(train_path))
