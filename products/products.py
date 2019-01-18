@@ -71,7 +71,11 @@ class EvalResult:
 
 	def save(self, image_path):
 		image_path = fixpath(image_path)
-		_, ax = plt.subplots(1, figsize=(16, 16))
+		_, ax = plt.subplots(1, figsize=(12, 12))
+		ax.axis('off')
+		ax.margins(0,0)
+		ax.xaxis.set_major_locator(plt.NullLocator())
+		ax.yaxis.set_major_locator(plt.NullLocator())
 		visualize.display_instances(
 			image=self.image,
 			boxes=self.data['rois'],
@@ -79,8 +83,9 @@ class EvalResult:
 			class_ids=self.data['class_ids'],
 			class_names=self.classes,
 			scores=self.data['scores'],
+			figsize=(12, 12),
 			ax=ax)
-		plt.savefig(image_path)
+		plt.savefig(image_path, bbox_inches='tight', pad_inches=0)
 
 	def to_json(self):
 		products = {}
